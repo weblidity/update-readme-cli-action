@@ -23,6 +23,6 @@ jobs:
       uses: actions/checkout@v2
 
     - name: Use Update README Action
-      uses: weblidity/update-readme-cli-action@v2
+      uses: weblidity/update-readme-cli-action@v1
       with:
         cli-path: './bin/cli.js'
