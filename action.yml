@@ -1,4 +1,4 @@
-name: 'Update README'
+name: 'Update README CLI'
 description: 'A GitHub Action to update the README file with the usage section generated from the CLI.'
 author: 'Your Name'
 inputs:
