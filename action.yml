@@ -61,7 +61,7 @@ runs:
         CONTENT=$(cat USAGE.md)
         TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
         CONTENT="<!-- Updated on $TIMESTAMP for CLI: ${{ inputs.cli-path }} -->\n$CONTENT"
-        echo "CONTENT=$CONTENT" >> $GITHUB_ENV
+        echo "CONTENT=$CONTENT"
       shell: bash
 
     - name: Insert content into README
