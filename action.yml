@@ -1,0 +1,97 @@
+name: 'Update README'
+description: 'A GitHub Action to update the README file with the usage section generated from the CLI.'
+author: 'Your Name'
+inputs:
+  cli-path:
+    description: 'Path to the CLI file'
+    required: true
+    default: './bin/cli.js'
+outputs:
+  updated:
+    description: 'Indicates if the README was updated'
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Cache Node.js modules
+      uses: actions/cache@v2
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Check CLI Path
+      run: |
+        if [ ! -f "${{ inputs.cli-path }}" ]; then
+          echo "CLI file not found at path: ${{ inputs.cli-path }}"
+          exit 1
+        fi
+
+    - name: Check generate-usage.js Script
+      run: |
+        if [ ! -f "generate-usage.js" ]; then
+          echo "generate-usage.js script not found in the repository."
+          exit 1
+        fi
+
+    - name: Check README.md
+      run: |
+        if [ ! -f README.md ]; then
+          echo "README.md not found"
+          exit 1
+        fi
+
+    - name: Generate Usage Section
+      run: |
+        node generate-usage.js ${{ inputs.cli-path }}  # Generate the usage section using the CLI file path
+
+    - name: Create Content Variable
+      run: |
+        CONTENT=$(cat USAGE.md)
+        TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
+        CONTENT="<!-- Updated on $TIMESTAMP for CLI: ${{ inputs.cli-path }} -->\n$CONTENT"
+        echo "CONTENT=$CONTENT" >> $GITHUB_ENV
+
+    - name: Insert content into README
+      id: insert-content
+      run: |
+        CONTENT=${{ env.CONTENT }}
+        
+        if grep -q '<!--- INSERT_BEGIN:USAGE.md --->' README.md && grep -q '<!--- INSERT_END:USAGE.md --->' README.md; then
+          awk '/<!--- INSERT_BEGIN:USAGE.md --->/{print;print CONTENT;found=1;next} /<!--- INSERT_END:USAGE.md --->/{found=0} !found' CONTENT="$CONTENT" README.md > README.tmp && mv README.tmp README.md
+          echo "::set-output name=updated::true"
+        elif grep -q '<!-- INSERT:USAGE.md -->' README.md; then
+          awk '{print} /<!-- INSERT:USAGE.md -->/{print "<!--- INSERT_BEGIN:USAGE.md --->\n" CONTENT "\n<!--- INSERT_END:USAGE.md --->"}' CONTENT="$CONTENT" README.tmp && mv README.tmp README.md
+          echo "::set-output name=updated::true"
+        else
+          echo "No INSERT tags found in README.md. No updates made."
+          echo "::set-output name=updated::false"
+        fi
+      shell: /usr/bin/bash -e {0}
+
+    - name: Commit changes
+      if: steps.insert-content.outputs.updated == 'true'
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        git add README.md
+        git commit -m "Update README with usage content"
+        git push
+
+    - name: Notify on Success
+      if: success()
+      run: echo "The README update was successful!"
+
+    - name: Notify on Failure
+      if: failure()
+      run: echo "The README update failed."
+
+branding:
+  icon: 'terminal'
+  color: 'blue'
